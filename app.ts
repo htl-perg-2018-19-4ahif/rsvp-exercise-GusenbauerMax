@@ -3,41 +3,47 @@ import * as loki from 'lokijs';
 import * as express from 'express';
 import * as basic from 'express-basic-auth';
 
-var app = express();
+const app = express();
 app.use(express.json());
 
-const adminFilter = basic({ users: { admin: 'P@ssw0rd!' }});
+import {Request, Response} from 'express';
 
-const db = new loki(__dirname + '/db.dat', {autosave: true, autoload: true});
-let guests = db.getCollection('guests');
-if (!guests) {
-  guests = db.addCollection('guests');
+let db = new loki('loki.json');
+let guests = db.addCollection('guests');
+
+//const adminFilter = basic({ users: { admin: 'test' }});
+
+app.get('/party', getAll);
+app.get('/api/guests', list, /*adminFilter*/);
+app.post('/register', register);
+
+export function getAll(req: Request, res: Response): void {
+  res.send({
+    party: "Halloweenparty",
+    location: "Baumgartenberg",
+    date: new Date(2019, 31, 10)
+  });
 }
 
-app.get('/guests', adminFilter, (req, res) => {
-  res.send(guests.find());
-});
-
-app.get('/party', (req, res, next) => {
-  res.send({
-    title: 'Happy new year!',
-    location: 'At my home',
-    date: new Date(2017, 0, 1)
-  });
-});
-
-app.post('/register', (req, res, next) => {
+export function register(req: Request, res: Response): void {
   if (!req.body.firstName || !req.body.lastName) {
-    res.status(BAD_REQUEST).send('Missing mandatory member(s)');
+    res.status(BAD_REQUEST).send('Missing Members');
   } else {
     const count = guests.count();
+    if (count < 10){
+      guests.insert({firstName:req.body.fn, lastName: req.body.ln});
+    }
     if (count < 10) {
-      const newDoc = guests.insert({firstName: req.body.firstName, lastName: req.body.lastName});
+      const newDoc = guests.insert({firstName:req.body.fn, lastName: req.body.ln});
       res.status(CREATED).send(newDoc);
     } else {
-      res.status(UNAUTHORIZED).send('Sorry, max. number of guests already reached');
+      res.status(UNAUTHORIZED).send('Too many guests');
     }
   }
-});
+}
 
-app.listen(8080, () => console.log('API is listening'));
+export function list(req: Request, res: Response): void {
+  res.send(guests.find());
+}
+
+app.listen(9000, () => console.log('API is listening on port 9000'));
